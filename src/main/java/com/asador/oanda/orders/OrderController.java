@@ -38,6 +38,6 @@ public class OrderController {
 	@DeleteMapping("/{orderId}")
 	@ResponseStatus(HttpStatus.OK)
 	public void cancelOrder(@PathVariable String orderId) {
-		orderManager.cancelPendingOrder(orderId);
+		orderManager.cancelPendingStopOrder(orderId);
 	}
 }

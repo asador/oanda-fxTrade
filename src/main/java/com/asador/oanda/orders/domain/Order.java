@@ -5,10 +5,11 @@ public class Order {
 	private String orderId;
 	private String instrument;
 	private OrderAction action;
-	private int unit;
-	private double entry;
+	private long units;
+	private double stopEntry;
 	private double targetProfit;
 	private double stopLoss;
+	private int triggerDistancePips;	//this must be a positive number
 	
 	public String getOrderId() {
 		return orderId;
@@ -28,17 +29,17 @@ public class Order {
 	public void setAction(OrderAction action) {
 		this.action = action;
 	}
-	public int getUnit() {
-		return unit;
+	public long getUnits() {
+		return units;
 	}
-	public void setUnit(int unit) {
-		this.unit = unit;
+	public void setUnits(long units) {
+		this.units = units;
 	}
-	public double getEntry() {
-		return entry;
+	public double getStopEntry() {
+		return stopEntry;
 	}
-	public void setEntry(double entry) {
-		this.entry = entry;
+	public void setStopEntry(double stopEntry) {
+		this.stopEntry = stopEntry;
 	}
 	public double getTargetProfit() {
 		return targetProfit;
@@ -52,6 +53,11 @@ public class Order {
 	public void setStopLoss(double stopLoss) {
 		this.stopLoss = stopLoss;
 	}
-	
+	public int getTriggerDistancePips() {
+		return triggerDistancePips;
+	}
+	public void setTriggerDistancePips(int triggerDistancePips) {
+		this.triggerDistancePips = triggerDistancePips;
+	}	
 	
 }
