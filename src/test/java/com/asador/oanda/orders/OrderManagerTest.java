@@ -18,8 +18,23 @@ public class OrderManagerTest {
 	}
 
 	@Test
-	public void createStopOrder_WhenNewOrder_ShouldCreatePendingOrder() {
+	public void createStopOrder_WhenNewOrder_ShouldCreatePendingOrderAndOrderWatch() {
 		//TODO
+	}
+	
+	@Test
+	public void watchPriceAndPlaceStopOrder_WhenPriceReached_ShouldPlaceOandaStopOrderAndRemovePendingOrder() {
+		
+	}
+
+	@Test
+	public void watchPriceAndPlaceStopOrder_WhenOrderCanceled_ShouldStopOrderWatchAndRemovePendingOrder() {
+		
+	}
+
+	@Test
+	public void watchPriceAndPlaceStopOrder_WhenOandaException_ShouldStopOrderWatchAndRemovePendingOrder() {
+		
 	}
 
 	@Test

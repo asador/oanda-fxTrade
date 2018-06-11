@@ -5,6 +5,8 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -59,6 +61,7 @@ public class OrderManager {
 	private AccountID accountIdObject;
 	
 	private ExecutorService executor = Executors.newCachedThreadPool();
+	private Set<String> cancelledOrderIds = new HashSet<>();
 	
 	@PostConstruct
 	protected void init() {
@@ -70,11 +73,7 @@ public class OrderManager {
 		
 		for (Order order : orderDao.getOrders()) {
 			createOrderWatch(order);
-		}
-		
-		logger.info("accountId: {}", accountId);
-		logger.info("accessToken: {}", accessToken);
-		logger.info("endpoint {}", oandaApiEndpoint);
+		}		
 	}
 	
 	public String createStopOrder(Order order) {
@@ -82,7 +81,7 @@ public class OrderManager {
 		// validate order
 		validateOrder(order);
 		
-		// check for duplicate
+		// TODO check for duplicate
 		
 		String orderId = orderDao.createOrder(order);
 		logger.info("Pending order created {}", orderId);
@@ -93,7 +92,10 @@ public class OrderManager {
 	}
 	
 	void validateOrder(Order order) throws IllegalArgumentException {
-		
+		if (order.getInstrument() == null || order.getAction() == null || order.getUnits() <= 0 ||
+				order.getStopEntry() <= 0 || order.getStopLoss() <= 0 || order.getTargetProfit() <= 0 ||
+				order.getTriggerDistancePips() <= 0 )
+			throw new IllegalArgumentException("One or more order attributes are wrong.");
 	}
 
 	private void createOrderWatch(Order order) {
@@ -111,7 +113,7 @@ public class OrderManager {
 		request.setGranularity(CandlestickGranularity.M1);
 		
 		try {
-			while (!priceReached) {
+			while (!priceReached && !isOrderCancelled(order.getOrderId())) {
 				PricingCandlesResponse response = oandaCtx.pricing.candles(request);
 				Candlestick mostRecentCandlestick = response.getCandles().get(0);
 				if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order))
@@ -119,16 +121,27 @@ public class OrderManager {
 				else
 					Thread.sleep(1000);
 			}
-			// price is in the zone, time to place the order
-			placeStopOrder(order);
+			if (!isOrderCancelled(order.getOrderId())) {				
+				// price is in the zone, time to place the order
+				placeStopOrder(order);
+			} else
+				cancelledOrderIds.remove(order.getOrderId());
 			
 		} catch (Exception e) {
 			logger.error("Order " + order.getInstrument() + ", " + order.getAction() + " at " + 
 					order.getStopEntry() + " was canceled due to exception.", e);
 		} finally {				
-			orderDao.removeOrder(order.getOrderId());
+			try {
+				orderDao.removeOrder(order.getOrderId());
+			} catch (Exception e) {
+				// ignore it
+			}
 		}
 		
+	}
+	
+	private boolean isOrderCancelled(String orderId) {
+		return cancelledOrderIds.contains(orderId);
 	}
 	
 	boolean priceMeetsOrderPlacementCondition(Candlestick candlestick, Order order) {
@@ -162,8 +175,8 @@ public class OrderManager {
         
         OrderCreateResponse response = oandaCtx.order.create(request);
 		Transaction transaction = response.getOrderCreateTransaction();
-		logger.info("Created {} {} order with transaction ID {}, type {} ", order.getInstrument(), order.getAction(), 
-				transaction.getId(), transaction.getType());
+		logger.info("Created {} {} order with transaction ID {}", order.getInstrument(), order.getAction(), 
+				transaction.getId());
 		
 		OrderCancelTransaction orderCancelTx = response.getOrderCancelTransaction();
 		if (orderCancelTx != null) {
@@ -190,6 +203,8 @@ public class OrderManager {
 	
 	public void cancelPendingStopOrder(String orderId) {
 		orderDao.removeOrder(orderId);
+		cancelledOrderIds.add(orderId);
+		
 		logger.info("Order canceled {}", orderId);
 	}
 	
