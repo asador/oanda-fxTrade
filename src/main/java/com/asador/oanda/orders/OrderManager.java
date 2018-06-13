@@ -84,7 +84,7 @@ public class OrderManager {
 		// TODO check for duplicate
 		
 		String orderId = orderDao.createOrder(order);
-		logger.info("Pending order created {}", orderId);
+		logger.info("Pending order created. Order Id {}", orderId);
 		
 		createOrderWatch(order);
 		
@@ -96,6 +96,8 @@ public class OrderManager {
 				order.getStopEntry() <= 0 || order.getStopLoss() <= 0 || order.getTargetProfit() <= 0 ||
 				order.getTriggerDistancePips() <= 0 )
 			throw new IllegalArgumentException("One or more order attributes are wrong.");
+		
+		order.setInstrument(order.getInstrument().toUpperCase());
 	}
 
 	private void createOrderWatch(Order order) {
@@ -116,16 +118,22 @@ public class OrderManager {
 			while (!priceReached && !isOrderCancelled(order.getOrderId())) {
 				PricingCandlesResponse response = oandaCtx.pricing.candles(request);
 				Candlestick mostRecentCandlestick = response.getCandles().get(0);
-				if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order))
+				if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order)) {
+					logger.info("{} reached the zone to place {} stop order at {}", order.getInstrument(),
+							order.getAction(), order.getStopEntry());
 					priceReached = true;
+				}
 				else
 					Thread.sleep(1000);
 			}
 			if (!isOrderCancelled(order.getOrderId())) {				
 				// price is in the zone, time to place the order
 				placeStopOrder(order);
-			} else
+			} else {
 				cancelledOrderIds.remove(order.getOrderId());
+				logger.info("Stopped price watch for order {} {} {} as it was canceled", order.getOrderId(), 
+						order.getAction(), order.getInstrument());
+			}
 			
 		} catch (Exception e) {
 			logger.error("Order " + order.getInstrument() + ", " + order.getAction() + " at " + 
@@ -146,13 +154,22 @@ public class OrderManager {
 	
 	boolean priceMeetsOrderPlacementCondition(Candlestick candlestick, Order order) {
 		if (order.getAction() == OrderAction.BUY) {
-			if (candlestick.getMid().getC().doubleValue() <= order.getStopEntry() - order.getTriggerDistancePips())
+			if (candlestick.getMid().getC().doubleValue() <= order.getStopEntry() - 
+					convertPip2PriceValue(order.getTriggerDistancePips(), order.getInstrument()))
 				return true;
 		} else {
-			if (candlestick.getMid().getC().doubleValue() >= order.getStopEntry() + order.getTriggerDistancePips())
+			if (candlestick.getMid().getC().doubleValue() >= order.getStopEntry() + 
+					convertPip2PriceValue(order.getTriggerDistancePips(), order.getInstrument()))
 				return true;	
 		}
 		return false;
+	}
+	
+	double convertPip2PriceValue(int pip, String instrument) {
+		if (instrument.contains("JPY"))
+			return (double)pip / 100;
+		else 
+			return (double)pip / 10000;
 	}
 	
 	void placeStopOrder(Order order) throws RequestException, ExecuteException {
@@ -205,7 +222,7 @@ public class OrderManager {
 		orderDao.removeOrder(orderId);
 		cancelledOrderIds.add(orderId);
 		
-		logger.info("Order canceled {}", orderId);
+		logger.info("Order {} canceled.", orderId);
 	}
 	
 	public static void main(String[] a) {

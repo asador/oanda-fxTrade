@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class OrderDAO {
+	// use HSQL DB
 	private Map<String, Order> pendingOrders = new HashMap<>();
 
 	public String createOrder(Order order) {

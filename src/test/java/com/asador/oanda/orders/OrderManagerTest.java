@@ -1,11 +1,15 @@
 package com.asador.oanda.orders;
 
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 public class OrderManagerTest {
+	
+//	@Autowired
+	private OrderManager orderManager = new OrderManager();
 
 	@Test
 	public void createStopOrder_WhenOrderInvalid_ShouldThrowException() {
@@ -80,6 +84,19 @@ public class OrderManagerTest {
 	@Test
 	public void priceMeetsOrderPlacementCondition_WhenSellOrderAndPriceEqualsTriggerValue_ShouldReturnTrue() {
 		//TODO
+	}
+
+	@Test
+	public void convertPip2PriceValue_WhenJPY_ShouldDivideBy100() {
+		double result = orderManager.convertPip2PriceValue(5, "USD_JPY");
+		Assert.assertEquals("Pip value should have been divided by 100", 0.05, result, 0);
+	}
+	
+	@Test
+	public void convertPip2PriceValue_WhenNonJPY_ShouldDivideBy10000() {
+		double result = orderManager.convertPip2PriceValue(5, "USD_CAD");
+		Assert.assertEquals("Pip value should have been divided by 10000", 0.0005, result, 0);
+		
 	}
 
 }
