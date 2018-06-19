@@ -96,7 +96,6 @@ public class OrderManagerTest {
 	public void convertPip2PriceValue_WhenNonJPY_ShouldDivideBy10000() {
 		double result = orderManager.convertPip2PriceValue(5, "USD_CAD");
 		Assert.assertEquals("Pip value should have been divided by 10000", 0.0005, result, 0);
-		
 	}
 
 }

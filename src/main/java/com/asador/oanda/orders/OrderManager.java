@@ -61,7 +61,7 @@ public class OrderManager {
 	private AccountID accountIdObject;
 	
 	private ExecutorService executor = Executors.newCachedThreadPool();
-	private Set<String> cancelledOrderIds = new HashSet<>();
+	private Set<Long> cancelledOrderIds = new HashSet<>();
 	
 	@PostConstruct
 	protected void init() {
@@ -76,14 +76,14 @@ public class OrderManager {
 		}		
 	}
 	
-	public String createStopOrder(Order order) {
+	public long createStopOrder(Order order) {
 		
 		// validate order
 		validateOrder(order);
 		
 		// TODO check for duplicate
 		
-		String orderId = orderDao.createOrder(order);
+		long orderId = orderDao.createOrder(order);
 		logger.info("Pending order created. Order Id {}", orderId);
 		
 		createOrderWatch(order);
@@ -148,7 +148,7 @@ public class OrderManager {
 		
 	}
 	
-	private boolean isOrderCancelled(String orderId) {
+	private boolean isOrderCancelled(long orderId) {
 		return cancelledOrderIds.contains(orderId);
 	}
 	
@@ -166,7 +166,7 @@ public class OrderManager {
 	}
 	
 	double convertPip2PriceValue(int pip, String instrument) {
-		if (instrument.contains("JPY"))
+		if (instrument.contains("_JPY"))
 			return (double)pip / 100;
 		else 
 			return (double)pip / 10000;
@@ -218,7 +218,7 @@ public class OrderManager {
 		return orderDao.getOrders();
 	}
 	
-	public void cancelPendingStopOrder(String orderId) {
+	public void cancelPendingStopOrder(long orderId) {
 		orderDao.removeOrder(orderId);
 		cancelledOrderIds.add(orderId);
 		

@@ -2,7 +2,7 @@ package com.asador.oanda.orders.domain;
 
 public class Order {
 
-	private String orderId;
+	private long orderId;
 	private String instrument;
 	private OrderAction action;
 	private long units;
@@ -11,10 +11,10 @@ public class Order {
 	private double stopLoss;
 	private int triggerDistancePips;	//this must be a positive number
 	
-	public String getOrderId() {
+	public long getOrderId() {
 		return orderId;
 	}
-	public void setOrderId(String orderId) {
+	public void setOrderId(long orderId) {
 		this.orderId = orderId;
 	}
 	public String getInstrument() {
