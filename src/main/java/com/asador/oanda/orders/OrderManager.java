@@ -78,10 +78,10 @@ public class OrderManager {
 	
 	public long createStopOrder(Order order) {
 		
-		// validate order
 		validateOrder(order);
 		
-		// TODO check for duplicate
+		if (isOrderDuplicate(order))
+			throw new RuntimeException("A similar order already exist for " + order.getAction() + " " + order.getInstrument());
 		
 		long orderId = orderDao.createOrder(order);
 		logger.info("Pending order created. Order Id {}", orderId);
@@ -98,6 +98,15 @@ public class OrderManager {
 			throw new IllegalArgumentException("One or more order attributes are wrong.");
 		
 		order.setInstrument(order.getInstrument().toUpperCase());
+	}
+	
+	boolean isOrderDuplicate(Order newOrder) {
+		for (Order existingOrder : orderDao.getOrders()) {
+			if (newOrder.getInstrument().equals(existingOrder.getInstrument()) &&
+					newOrder.getAction() == existingOrder.getAction())
+				return true;
+		}
+		return false;
 	}
 
 	private void createOrderWatch(Order order) {
@@ -219,10 +228,17 @@ public class OrderManager {
 	}
 	
 	public void cancelPendingStopOrder(long orderId) {
-		orderDao.removeOrder(orderId);
-		cancelledOrderIds.add(orderId);
-		
-		logger.info("Order {} canceled.", orderId);
+		boolean orderRemoved = orderDao.removeOrder(orderId);
+		if (orderRemoved) {
+			cancelledOrderIds.add(orderId);			
+			logger.info("Order {} canceled.", orderId);
+		} else
+			throw new RuntimeException("Order not found " + orderId);
+	}
+	
+	// a hack to override oanda context with mocks during testing
+	Context getOandaContext() {
+		return oandaCtx;
 	}
 	
 	public static void main(String[] a) {
