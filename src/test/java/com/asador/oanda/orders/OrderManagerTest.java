@@ -12,6 +12,7 @@ import java.util.Collection;
 
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,12 +27,12 @@ import com.oanda.v20.RequestException;
 import com.oanda.v20.account.AccountID;
 import com.oanda.v20.instrument.Candlestick;
 import com.oanda.v20.instrument.CandlestickData;
+import com.oanda.v20.instrument.InstrumentCandlesRequest;
+import com.oanda.v20.instrument.InstrumentCandlesResponse;
+import com.oanda.v20.instrument.InstrumentContext;
 import com.oanda.v20.order.OrderContext;
 import com.oanda.v20.order.OrderCreateRequest;
 import com.oanda.v20.order.OrderCreateResponse;
-import com.oanda.v20.pricing.PricingCandlesRequest;
-import com.oanda.v20.pricing.PricingCandlesResponse;
-import com.oanda.v20.pricing.PricingContext;
 import com.oanda.v20.primitives.DateTime;
 import com.oanda.v20.transaction.RequestID;
 import com.oanda.v20.transaction.Transaction;
@@ -48,8 +49,14 @@ public class OrderManagerTest {
 	@Autowired
 	private OrderDAO orderDao;
 	
-	private PricingContext pricingContextMock = mock(PricingContext.class);
 	private OrderContext orderContextMock = mock(OrderContext.class);
+	private InstrumentContext instrumentContextMock = mock(InstrumentContext.class);
+	
+	@Before
+	public void setup() {
+		orderManager.getOandaContext().instrument = instrumentContextMock;
+		orderManager.getOandaContext().order = orderContextMock;
+	}
 	
 	@After
 	public void tearDown() {
@@ -148,32 +155,30 @@ public class OrderManagerTest {
 	
 	@Test
 	public void watchPriceAndPlaceStopOrder_WhenPriceReached_ShouldPlaceOandaStopOrderAndRemovePendingOrder() {
-		PricingCandlesResponse pricingCandleResponse1 = mock(PricingCandlesResponse.class);
+		InstrumentCandlesResponse instrumentCandleResponse1 = mock(InstrumentCandlesResponse.class);
 		Candlestick candlestick1 = new Candlestick();
 		CandlestickData candleData1 = new CandlestickData();
 		candlestick1.setMid(candleData1);
 		candleData1.setC(1.0352);
-		when(pricingCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
+		when(instrumentCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
 
-		PricingCandlesResponse pricingCandleResponse2 = mock(PricingCandlesResponse.class);
+		InstrumentCandlesResponse instrumentCandleResponse2 = mock(InstrumentCandlesResponse.class);
 		Candlestick candlestick2 = new Candlestick();
 		CandlestickData candleData2 = new CandlestickData();
 		candlestick2.setMid(candleData2);
 		candleData2.setC(1.0340);
-		when(pricingCandleResponse2.getCandles()).thenReturn(Arrays.asList(candlestick2));
+		when(instrumentCandleResponse2.getCandles()).thenReturn(Arrays.asList(candlestick2));
 		
 		OrderCreateResponse orderResponse = mock(OrderCreateResponse.class);
 		when(orderResponse.getOrderCancelTransaction()).thenReturn(null);
 		when(orderResponse.getOrderCreateTransaction()).thenReturn(createDummyTransaction());
 		try {
-			when(pricingContextMock.candles(any(PricingCandlesRequest.class))).thenReturn(pricingCandleResponse1).thenReturn(pricingCandleResponse2);
+			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class))).thenReturn(instrumentCandleResponse1).thenReturn(instrumentCandleResponse2);
 			when(orderContextMock.create(any(OrderCreateRequest.class))).thenReturn(orderResponse);
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
 		
-		orderManager.getOandaContext().pricing = pricingContextMock;
-		orderManager.getOandaContext().order = orderContextMock;
 		Order eurusd = createEURUSDOrder();
 		orderDao.createOrder(eurusd);
 		
@@ -184,7 +189,7 @@ public class OrderManagerTest {
 		Assert.assertNull("Pending order must have been removed once Oanda Stop order is placed.", orderDao.getOrder(eurusd.getOrderId()));
 		
 		try {
-			verify(pricingContextMock, times(2)).candles(any(PricingCandlesRequest.class));
+			verify(instrumentContextMock, times(2)).candles(any(InstrumentCandlesRequest.class));
 			verify(orderContextMock).create(any(OrderCreateRequest.class));
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
@@ -194,20 +199,19 @@ public class OrderManagerTest {
 
 	@Test
 	public void watchPriceAndPlaceStopOrder_WhenOrderCanceled_ShouldStopOrderWatchAndRemovePendingOrder() {
-		PricingCandlesResponse pricingCandleResponse1 = mock(PricingCandlesResponse.class);
+		InstrumentCandlesResponse instrumentCandleResponse1 = mock(InstrumentCandlesResponse.class);
 		Candlestick candlestick1 = new Candlestick();
 		CandlestickData candleData1 = new CandlestickData();
 		candlestick1.setMid(candleData1);
 		candleData1.setC(1.0352);
-		when(pricingCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
+		when(instrumentCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
 
 		try {
-			when(pricingContextMock.candles(any(PricingCandlesRequest.class))).thenReturn(pricingCandleResponse1);
+			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class))).thenReturn(instrumentCandleResponse1);
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
 		
-		orderManager.getOandaContext().pricing = pricingContextMock;
 		Order eurusd = createEURUSDOrder();
 		orderDao.createOrder(eurusd);
 		
@@ -226,7 +230,7 @@ public class OrderManagerTest {
 		Assert.assertNull("Pending order must have been removed if it is cancelled.", orderDao.getOrder(eurusd.getOrderId()));
 		
 		try {
-			verify(pricingContextMock, atLeast(1)).candles(any(PricingCandlesRequest.class));
+			verify(instrumentContextMock, atLeast(1)).candles(any(InstrumentCandlesRequest.class));
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
@@ -236,12 +240,11 @@ public class OrderManagerTest {
 	@Test
 	public void watchPriceAndPlaceStopOrder_WhenOandaException_ShouldStopOrderWatchAndRemovePendingOrder() {
 		try {
-			when(pricingContextMock.candles(any(PricingCandlesRequest.class))).thenThrow(new ExecuteException(new Exception()));
+			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class))).thenThrow(new ExecuteException(new Exception()));
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
 		
-		orderManager.getOandaContext().pricing = pricingContextMock;
 		Order eurusd = createEURUSDOrder();
 		orderDao.createOrder(eurusd);
 		
@@ -252,7 +255,7 @@ public class OrderManagerTest {
 		Assert.assertNull("Pending order must have been removed if Oanda exception happens.", orderDao.getOrder(eurusd.getOrderId()));
 		
 		try {
-			verify(pricingContextMock, times(1)).candles(any(PricingCandlesRequest.class));
+			verify(instrumentContextMock, times(1)).candles(any(InstrumentCandlesRequest.class));
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}

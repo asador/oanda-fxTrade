@@ -28,12 +28,12 @@ import com.oanda.v20.RequestException;
 import com.oanda.v20.account.AccountID;
 import com.oanda.v20.instrument.Candlestick;
 import com.oanda.v20.instrument.CandlestickGranularity;
+import com.oanda.v20.instrument.InstrumentCandlesRequest;
+import com.oanda.v20.instrument.InstrumentCandlesResponse;
 import com.oanda.v20.order.OrderCreateRequest;
 import com.oanda.v20.order.OrderCreateResponse;
 import com.oanda.v20.order.StopOrderRequest;
 import com.oanda.v20.order.TimeInForce;
-import com.oanda.v20.pricing.PricingCandlesRequest;
-import com.oanda.v20.pricing.PricingCandlesResponse;
 import com.oanda.v20.primitives.DateTime;
 import com.oanda.v20.primitives.InstrumentName;
 import com.oanda.v20.transaction.OrderCancelTransaction;
@@ -118,14 +118,14 @@ public class OrderManager {
 	void watchPriceAndPlaceStopOrder(Order order) {
 		boolean priceReached = false;
 		
-		PricingCandlesRequest request = new PricingCandlesRequest(new InstrumentName(order.getInstrument()));
+		InstrumentCandlesRequest request = new InstrumentCandlesRequest(new InstrumentName(order.getInstrument()));
 		request.setCount(1L);
 		request.setPrice("M");
 		request.setGranularity(CandlestickGranularity.M1);
 		
 		try {
 			while (!priceReached && !isOrderCancelled(order.getOrderId())) {
-				PricingCandlesResponse response = oandaCtx.pricing.candles(request);
+				InstrumentCandlesResponse response = oandaCtx.instrument.candles(request);
 				Candlestick mostRecentCandlestick = response.getCandles().get(0);
 				if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order)) {
 					logger.info("{} reached the zone to place {} stop order at {}", order.getInstrument(),
