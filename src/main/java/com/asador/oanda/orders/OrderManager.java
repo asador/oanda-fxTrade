@@ -116,6 +116,8 @@ public class OrderManager {
 	}
 	
 	void watchPriceAndPlaceStopOrder(Order order) {
+		logger.info("Start checking the price for {} to {} at {}", order.getInstrument(),	order.getAction(), order.getStopEntry());
+		
 		boolean priceReached = false;
 		
 		InstrumentCandlesRequest request = new InstrumentCandlesRequest(new InstrumentName(order.getInstrument()));
