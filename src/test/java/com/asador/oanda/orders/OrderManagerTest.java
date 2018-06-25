@@ -93,9 +93,9 @@ public class OrderManagerTest {
 		Order order = new Order();
 		order.setInstrument("EUR_USD");
 		order.setAction(OrderAction.BUY);
-		order.setStopEntry(1.0345);
+		order.setStopEntry(1.0145);
 		order.setTargetProfit(1.3245);
-		order.setStopLoss(1.0133);
+		order.setStopLoss(1.0033);
 		order.setUnits(10000);
 		order.setTriggerDistancePips(3);
 		return order;
@@ -105,9 +105,9 @@ public class OrderManagerTest {
 		Order order = new Order();
 		order.setInstrument("USD_CAD");
 		order.setAction(OrderAction.SELL);
-		order.setStopEntry(1.7345);
+		order.setStopEntry(1.8345);
 		order.setTargetProfit(1.5245);
-		order.setStopLoss(1.7533);
+		order.setStopLoss(1.8533);
 		order.setUnits(10000);
 		order.setTriggerDistancePips(3);
 		return order;
@@ -159,14 +159,14 @@ public class OrderManagerTest {
 		Candlestick candlestick1 = new Candlestick();
 		CandlestickData candleData1 = new CandlestickData();
 		candlestick1.setMid(candleData1);
-		candleData1.setC(1.0352);
+		candleData1.setC(1.0152);
 		when(instrumentCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
 
 		InstrumentCandlesResponse instrumentCandleResponse2 = mock(InstrumentCandlesResponse.class);
 		Candlestick candlestick2 = new Candlestick();
 		CandlestickData candleData2 = new CandlestickData();
 		candlestick2.setMid(candleData2);
-		candleData2.setC(1.0340);
+		candleData2.setC(1.0140);
 		when(instrumentCandleResponse2.getCandles()).thenReturn(Arrays.asList(candlestick2));
 		
 		OrderCreateResponse orderResponse = mock(OrderCreateResponse.class);
@@ -203,7 +203,7 @@ public class OrderManagerTest {
 		Candlestick candlestick1 = new Candlestick();
 		CandlestickData candleData1 = new CandlestickData();
 		candlestick1.setMid(candleData1);
-		candleData1.setC(1.0352);
+		candleData1.setC(1.0252);
 		when(instrumentCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
 
 		try {
@@ -409,6 +409,30 @@ public class OrderManagerTest {
 	public void convertPip2PriceValue_WhenNonJPY_ShouldDivideBy10000() {
 		double result = orderManager.convertPip2PriceValue(5, "USD_CAD");
 		Assert.assertEquals("Pip value should have been divided by 10000", 0.0005, result, 0);
+	}
+	
+	@Test
+	public void getOrderPlacementPrice_WhenBuyOrder_ShouldSubtractTriggerPipsFromStopPrice() {
+		Order order = new Order();
+		order.setInstrument("GBP_USD");
+		order.setAction(OrderAction.BUY);
+		order.setStopEntry(1.2345);
+		order.setTriggerDistancePips(5);
+		
+		double result = orderManager.getOrderPlacementPrice(order);
+		Assert.assertEquals("Order placement price is wrong", 1.2340, result, 0.000001);
+	}
+	
+	@Test
+	public void getOrderPlacementPrice_WhenSellOrder_ShouldAddTriggerPipsToStopPrice() {
+		Order order = new Order();
+		order.setInstrument("GBP_USD");
+		order.setAction(OrderAction.SELL);
+		order.setStopEntry(1.2345);
+		order.setTriggerDistancePips(5);
+		
+		double result = orderManager.getOrderPlacementPrice(order);
+		Assert.assertEquals("Order placement price is wrong", 1.2350, result, 0.000001);		
 	}
 
 	private Transaction createDummyTransaction() {

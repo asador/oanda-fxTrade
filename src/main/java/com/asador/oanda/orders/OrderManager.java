@@ -116,7 +116,8 @@ public class OrderManager {
 	}
 	
 	void watchPriceAndPlaceStopOrder(Order order) {
-		logger.info("Start checking the price for {} to {} at {}", order.getInstrument(),	order.getAction(), order.getStopEntry());
+		logger.info("Start checking the price for {} to {} at {}. Order will be placed when price reaches {}", 
+				order.getInstrument(),	order.getAction(), order.getStopEntry(), getOrderPlacementPrice(order));
 		
 		boolean priceReached = false;
 		
@@ -130,8 +131,8 @@ public class OrderManager {
 				InstrumentCandlesResponse response = oandaCtx.instrument.candles(request);
 				Candlestick mostRecentCandlestick = response.getCandles().get(0);
 				if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order)) {
-					logger.info("{} reached the zone to place {} stop order at {}", order.getInstrument(),
-							order.getAction(), order.getStopEntry());
+					logger.info("{} reached {}. It's time to place {} stop order at {}", order.getInstrument(),
+							getOrderPlacementPrice(order), order.getAction(), order.getStopEntry());
 					priceReached = true;
 				}
 				else
@@ -165,12 +166,10 @@ public class OrderManager {
 	
 	boolean priceMeetsOrderPlacementCondition(Candlestick candlestick, Order order) {
 		if (order.getAction() == OrderAction.BUY) {
-			if (candlestick.getMid().getC().doubleValue() <= order.getStopEntry() - 
-					convertPip2PriceValue(order.getTriggerDistancePips(), order.getInstrument()))
+			if (candlestick.getMid().getC().doubleValue() <= getOrderPlacementPrice(order))
 				return true;
 		} else {
-			if (candlestick.getMid().getC().doubleValue() >= order.getStopEntry() + 
-					convertPip2PriceValue(order.getTriggerDistancePips(), order.getInstrument()))
+			if (candlestick.getMid().getC().doubleValue() >= getOrderPlacementPrice(order))
 				return true;	
 		}
 		return false;
@@ -181,6 +180,14 @@ public class OrderManager {
 			return (double)pip / 100;
 		else 
 			return (double)pip / 10000;
+	}
+	
+	double getOrderPlacementPrice(Order order) {
+		if (order.getAction() == OrderAction.BUY) {
+			return order.getStopEntry() - convertPip2PriceValue(order.getTriggerDistancePips(), order.getInstrument());
+		} else {
+			return order.getStopEntry() + convertPip2PriceValue(order.getTriggerDistancePips(), order.getInstrument());
+		}
 	}
 	
 	void placeStopOrder(Order order) throws RequestException, ExecuteException {
