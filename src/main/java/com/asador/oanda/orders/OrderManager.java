@@ -126,8 +126,10 @@ public class OrderManager {
 		request.setPrice("M");
 		request.setGranularity(CandlestickGranularity.M1);
 		
-		try {
-			while (!priceReached && !isOrderCancelled(order.getOrderId())) {
+		while (!priceReached && !isOrderCancelled(order.getOrderId())) {
+			try {
+				Thread.sleep(1000);
+
 				InstrumentCandlesResponse response = oandaCtx.instrument.candles(request);
 				Candlestick mostRecentCandlestick = response.getCandles().get(0);
 				if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order)) {
@@ -135,9 +137,12 @@ public class OrderManager {
 							getOrderPlacementPrice(order), order.getAction(), order.getStopEntry());
 					priceReached = true;
 				}
-				else
-					Thread.sleep(1000);
-			}
+			} catch (Exception e) {
+				logger.warn("", e);
+			} 
+		}
+		
+		try {
 			if (!isOrderCancelled(order.getOrderId())) {				
 				// price is in the zone, time to place the order
 				placeStopOrder(order);

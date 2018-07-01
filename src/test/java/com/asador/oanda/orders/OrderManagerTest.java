@@ -194,7 +194,42 @@ public class OrderManagerTest {
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
+	}
 
+	@Test
+	public void watchPriceAndPlaceStopOrder_WhenOandaExceptionOnPriceCheck_ShouldContinueChekingPrice() {
+		InstrumentCandlesResponse instrumentCandleResponse1 = mock(InstrumentCandlesResponse.class);
+		Candlestick candlestick1 = new Candlestick();
+		CandlestickData candleData1 = new CandlestickData();
+		candlestick1.setMid(candleData1);
+		candleData1.setC(1.0140);
+		when(instrumentCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
+		
+		OrderCreateResponse orderResponse = mock(OrderCreateResponse.class);
+		when(orderResponse.getOrderCancelTransaction()).thenReturn(null);
+		when(orderResponse.getOrderCreateTransaction()).thenReturn(createDummyTransaction());
+		try {
+			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class))).thenThrow(new ExecuteException(new Exception("Unit test price check exception"))).thenReturn(instrumentCandleResponse1);
+			when(orderContextMock.create(any(OrderCreateRequest.class))).thenReturn(orderResponse);
+		} catch (RequestException | ExecuteException e) {
+			e.printStackTrace();
+		}
+		
+		Order eurusd = createEURUSDOrder();
+		orderDao.createOrder(eurusd);
+		
+		// call method under test
+		orderManager.watchPriceAndPlaceStopOrder(eurusd);
+		
+		// check results
+		Assert.assertNull("Pending order must have been removed once Oanda Stop order is placed.", orderDao.getOrder(eurusd.getOrderId()));
+		
+		try {
+			verify(instrumentContextMock, times(2)).candles(any(InstrumentCandlesRequest.class));
+			verify(orderContextMock).create(any(OrderCreateRequest.class));
+		} catch (RequestException | ExecuteException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Test
@@ -238,9 +273,20 @@ public class OrderManagerTest {
 	}
 
 	@Test
-	public void watchPriceAndPlaceStopOrder_WhenOandaException_ShouldStopOrderWatchAndRemovePendingOrder() {
+	public void watchPriceAndPlaceStopOrder_WhenOandaExceptionOnPlacingOrder_ShouldStopOrderWatchAndRemovePendingOrder() {
+		InstrumentCandlesResponse instrumentCandleResponse1 = mock(InstrumentCandlesResponse.class);
+		Candlestick candlestick1 = new Candlestick();
+		CandlestickData candleData1 = new CandlestickData();
+		candlestick1.setMid(candleData1);
+		candleData1.setC(1.0140);
+		when(instrumentCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
+
+		OrderCreateResponse orderResponse = mock(OrderCreateResponse.class);
+		when(orderResponse.getOrderCancelTransaction()).thenReturn(null);
+		when(orderResponse.getOrderCreateTransaction()).thenReturn(createDummyTransaction());
 		try {
-			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class))).thenThrow(new ExecuteException(new Exception()));
+			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class))).thenReturn(instrumentCandleResponse1);
+			when(orderContextMock.create(any(OrderCreateRequest.class))).thenThrow(new ExecuteException(new Exception("Unit test simulation exception")));
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
@@ -256,6 +302,7 @@ public class OrderManagerTest {
 		
 		try {
 			verify(instrumentContextMock, times(1)).candles(any(InstrumentCandlesRequest.class));
+			verify(orderContextMock).create(any(OrderCreateRequest.class));
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
