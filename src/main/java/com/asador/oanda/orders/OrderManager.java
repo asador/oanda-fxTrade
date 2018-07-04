@@ -45,6 +45,9 @@ import com.oanda.v20.transaction.Transaction;
 public class OrderManager {
 	private final Logger logger = LoggerFactory.getLogger(OrderManager.class);
 	
+	@Value("${spring.profiles.active}")
+	private String activeProfile;
+	
 	@Value("${oanda.accountId}")
 	private String accountId;
 	
@@ -65,6 +68,7 @@ public class OrderManager {
 	
 	@PostConstruct
 	protected void init() {
+		logger.info("OrderManager is being initialized with <<{}>> account.", activeProfile.toUpperCase());
 		oandaCtx = new ContextBuilder(oandaApiEndpoint)
 				.setApplication("")
 				.setToken(accessToken)
