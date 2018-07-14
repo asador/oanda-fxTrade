@@ -16,6 +16,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.retry.RetryCallback;
+import org.springframework.retry.RetryContext;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
 
 import com.asador.oanda.orders.domain.Order;
@@ -59,6 +62,9 @@ public class OrderManager {
 	
 	@Autowired
 	private OrderDAO orderDao;
+	
+	@Autowired
+	private RetryTemplate retryTemplate;
 	
 	private Context oandaCtx;
 	private AccountID accountIdObject;
@@ -120,33 +126,10 @@ public class OrderManager {
 	}
 	
 	void watchPriceAndPlaceStopOrder(Order order) {
-		logger.info("Start checking the price for {} to {} at {}. Order will be placed when price reaches {}", 
-				order.getInstrument(),	order.getAction(), order.getStopEntry(), getOrderPlacementPrice(order));
-		
-		boolean priceReached = false;
-		
-		InstrumentCandlesRequest request = new InstrumentCandlesRequest(new InstrumentName(order.getInstrument()));
-		request.setCount(1L);
-		request.setPrice("M");
-		request.setGranularity(CandlestickGranularity.M1);
-		
-		while (!priceReached && !isOrderCancelled(order.getOrderId())) {
-			try {
-				Thread.sleep(1000);
-
-				InstrumentCandlesResponse response = oandaCtx.instrument.candles(request);
-				Candlestick mostRecentCandlestick = response.getCandles().get(0);
-				if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order)) {
-					logger.info("{} reached {}. It's time to place {} stop order at {}", order.getInstrument(),
-							getOrderPlacementPrice(order), order.getAction(), order.getStopEntry());
-					priceReached = true;
-				}
-			} catch (Exception e) {
-				logger.warn("", e);
-			} 
-		}
 		
 		try {
+			watchPriceToReachZone(order);
+			
 			if (!isOrderCancelled(order.getOrderId())) {				
 				// price is in the zone, time to place the order
 				placeStopOrder(order);
@@ -165,12 +148,42 @@ public class OrderManager {
 			} catch (Exception e) {
 				// ignore it
 			}
-		}
-		
+		}	
 	}
 	
 	private boolean isOrderCancelled(long orderId) {
 		return cancelledOrderIds.contains(orderId);
+	}
+	
+	void watchPriceToReachZone(Order order) throws Exception {
+		logger.info("Start checking the price for {} to {} at {}. Order will be placed when price reaches {}", 
+				order.getInstrument(),	order.getAction(), order.getStopEntry(), getOrderPlacementPrice(order));
+		
+		boolean priceReached = false;
+		
+		InstrumentCandlesRequest request = new InstrumentCandlesRequest(new InstrumentName(order.getInstrument()));
+		request.setCount(1L);
+		request.setPrice("M");
+		request.setGranularity(CandlestickGranularity.M1);
+		
+		while (!priceReached && !isOrderCancelled(order.getOrderId())) {
+			InstrumentCandlesResponse response = retryTemplate.execute( 
+					new RetryCallback<InstrumentCandlesResponse, Exception>() {
+
+				@Override
+				public InstrumentCandlesResponse doWithRetry(RetryContext context) throws Exception {
+					return oandaCtx.instrument.candles(request);
+				}
+			});
+			Candlestick mostRecentCandlestick = response.getCandles().get(0);
+			if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order)) {
+				logger.info("{} reached {}. It's time to place {} stop order at {}", order.getInstrument(),
+						getOrderPlacementPrice(order), order.getAction(), order.getStopEntry());
+				priceReached = true;
+			} else
+				delay(1);
+		}
+		
 	}
 	
 	boolean priceMeetsOrderPlacementCondition(Candlestick candlestick, Order order) {
@@ -257,6 +270,14 @@ public class OrderManager {
 	// a hack to override oanda context with mocks during testing
 	Context getOandaContext() {
 		return oandaCtx;
+	}
+	
+	private void delay(int seconds) {
+		try {
+			Thread.sleep(seconds * 1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} 
 	}
 	
 	public static void main(String[] a) {

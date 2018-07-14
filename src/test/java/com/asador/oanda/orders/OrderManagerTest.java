@@ -197,7 +197,7 @@ public class OrderManagerTest {
 	}
 
 	@Test
-	public void watchPriceAndPlaceStopOrder_WhenOandaExceptionOnPriceCheck_ShouldContinueChekingPrice() {
+	public void watchPriceToReachZone_WhenOandaExceptionOnPriceCheck_ShouldContinueChekingPrice() {
 		InstrumentCandlesResponse instrumentCandleResponse1 = mock(InstrumentCandlesResponse.class);
 		Candlestick candlestick1 = new Candlestick();
 		CandlestickData candleData1 = new CandlestickData();
@@ -205,12 +205,8 @@ public class OrderManagerTest {
 		candleData1.setC(1.0140);
 		when(instrumentCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
 		
-		OrderCreateResponse orderResponse = mock(OrderCreateResponse.class);
-		when(orderResponse.getOrderCancelTransaction()).thenReturn(null);
-		when(orderResponse.getOrderCreateTransaction()).thenReturn(createDummyTransaction());
 		try {
 			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class))).thenThrow(new ExecuteException(new Exception("Unit test price check exception"))).thenReturn(instrumentCandleResponse1);
-			when(orderContextMock.create(any(OrderCreateRequest.class))).thenReturn(orderResponse);
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
@@ -219,14 +215,14 @@ public class OrderManagerTest {
 		orderDao.createOrder(eurusd);
 		
 		// call method under test
-		orderManager.watchPriceAndPlaceStopOrder(eurusd);
-		
-		// check results
-		Assert.assertNull("Pending order must have been removed once Oanda Stop order is placed.", orderDao.getOrder(eurusd.getOrderId()));
+		try {
+			orderManager.watchPriceToReachZone(eurusd);
+		} catch (Exception e1) {
+			Assert.fail("Exception in price check should not stop the loop");
+		}
 		
 		try {
 			verify(instrumentContextMock, times(2)).candles(any(InstrumentCandlesRequest.class));
-			verify(orderContextMock).create(any(OrderCreateRequest.class));
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}

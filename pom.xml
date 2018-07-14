@@ -31,10 +31,16 @@
 		</dependency>
 		
         <dependency>
-		  <groupId>com.oanda.v20</groupId>
-		  <artifactId>v20</artifactId>
-		  <version>3.0.24</version>
+			<groupId>com.oanda.v20</groupId>
+			<artifactId>v20</artifactId>
+			<version>3.0.24</version>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.retry</groupId>
+			<artifactId>spring-retry</artifactId>
+		</dependency>
+		
     </dependencies>
 
     <properties>
