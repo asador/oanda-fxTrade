@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.RetryCallback;
 import org.springframework.retry.RetryContext;
+import org.springframework.retry.RetryListener;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
 
@@ -83,7 +84,26 @@ public class OrderManager {
 		
 		for (Order order : orderDao.getOrders()) {
 			createOrderWatch(order);
-		}		
+		}
+		
+		retryTemplate.registerListener(new RetryListener() {
+			
+			@Override
+			public <T, E extends Throwable> boolean open(RetryContext context, RetryCallback<T, E> callback) {
+				return true;
+			}
+			
+			@Override
+			public <T, E extends Throwable> void onError(RetryContext context, RetryCallback<T, E> callback,
+					Throwable throwable) {
+				logger.warn("", throwable);			
+			}
+			
+			@Override
+			public <T, E extends Throwable> void close(RetryContext context, RetryCallback<T, E> callback,
+					Throwable throwable) {
+			}
+		});
 	}
 	
 	public long createStopOrder(Order order) {

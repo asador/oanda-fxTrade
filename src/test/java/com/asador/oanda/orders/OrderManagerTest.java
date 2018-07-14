@@ -206,7 +206,10 @@ public class OrderManagerTest {
 		when(instrumentCandleResponse1.getCandles()).thenReturn(Arrays.asList(candlestick1));
 		
 		try {
-			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class))).thenThrow(new ExecuteException(new Exception("Unit test price check exception"))).thenReturn(instrumentCandleResponse1);
+			when(instrumentContextMock.candles(any(InstrumentCandlesRequest.class)))
+				.thenThrow(new ExecuteException(new Exception("Unit test price check exception 1")))
+				.thenThrow(new ExecuteException(new Exception("Unit test price check exception 2")))
+				.thenReturn(instrumentCandleResponse1);
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
@@ -222,7 +225,7 @@ public class OrderManagerTest {
 		}
 		
 		try {
-			verify(instrumentContextMock, times(2)).candles(any(InstrumentCandlesRequest.class));
+			verify(instrumentContextMock, times(3)).candles(any(InstrumentCandlesRequest.class));
 		} catch (RequestException | ExecuteException e) {
 			e.printStackTrace();
 		}
