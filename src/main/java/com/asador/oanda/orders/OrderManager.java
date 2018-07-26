@@ -198,7 +198,7 @@ public class OrderManager {
 			Candlestick mostRecentCandlestick = response.getCandles().get(0);
 			if (priceMeetsOrderPlacementCondition(mostRecentCandlestick, order)) {
 				logger.info("{} reached {}. It's time to place {} stop order at {}", order.getInstrument(),
-						getOrderPlacementPrice(order), order.getAction(), order.getStopEntry());
+						mostRecentCandlestick.getMid().getC().doubleValue(), order.getAction(), order.getStopEntry());
 				priceReached = true;
 			} else
 				delay(1);
